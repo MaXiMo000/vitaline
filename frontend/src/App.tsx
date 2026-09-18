@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchDocuments, fetchObservations, uploadDocument, type DocumentSummary, type Observation } from "./api";
+import Ribbon from "./Ribbon";
 
 // Deliberately the plainest possible view: a sorted table, no chart, no
 // styling beyond what's needed to read it. This exists to prove the data
@@ -24,6 +25,7 @@ export default function App() {
   const [observations, setObservations] = useState<Observation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedLoinc, setSelectedLoinc] = useState<string | null>(null);
 
   const reload = () => {
     fetchDocuments().then(setDocuments).catch((e) => setError(String(e)));
@@ -52,6 +54,24 @@ export default function App() {
     const dateDiff = (a.observed_at ?? "").localeCompare(b.observed_at ?? "");
     return dateDiff !== 0 ? dateDiff : a.raw_name.localeCompare(b.raw_name);
   });
+
+  const analytes = useMemo(() => {
+    const byLoinc = new Map<string, { display: string; count: number }>();
+    for (const o of observations) {
+      if (!o.loinc_code || o.value === null || !o.observed_at) continue;
+      const entry = byLoinc.get(o.loinc_code) ?? { display: o.loinc_display ?? o.raw_name, count: 0 };
+      entry.count += 1;
+      byLoinc.set(o.loinc_code, entry);
+    }
+    return [...byLoinc.entries()]
+      .filter(([, v]) => v.count >= 2)
+      .map(([loincCode, v]) => ({ loincCode, ...v }));
+  }, [observations]);
+
+  const activeLoinc = selectedLoinc && analytes.some((a) => a.loincCode === selectedLoinc)
+    ? selectedLoinc
+    : analytes[0]?.loincCode ?? null;
+  const ribbonObservations = observations.filter((o) => o.loinc_code === activeLoinc);
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -89,6 +109,31 @@ export default function App() {
             ))}
           </tbody>
         </table>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 14 }}>Trend (step 3 — single-ribbon renderer)</h2>
+        {analytes.length === 0 ? (
+          <p style={{ opacity: 0.6, fontSize: 12 }}>
+            Upload at least two dated reports with a shared analyte to see a ribbon.
+          </p>
+        ) : (
+          <>
+            <label>
+              Analyte:{" "}
+              <select value={activeLoinc ?? ""} onChange={(e) => setSelectedLoinc(e.target.value)}>
+                {analytes.map((a) => (
+                  <option key={a.loincCode} value={a.loincCode}>
+                    {a.display} ({a.count} results)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div style={{ marginTop: 12 }}>
+              <Ribbon observations={ribbonObservations} />
+            </div>
+          </>
+        )}
       </section>
 
       <section>
