@@ -28,6 +28,12 @@ class ObservationOut(BaseModel):
     date_source: str
     needs_review: bool
     review_reason: str | None
+    llm_annotation: str | None
+
+
+class AnnotationOut(BaseModel):
+    text: str
+    cached: bool
 
 
 class DocumentOut(BaseModel):

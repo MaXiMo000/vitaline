@@ -29,6 +29,22 @@ export interface Observation {
   date_source: string;
   needs_review: boolean;
   review_reason: string | null;
+  llm_annotation: string | null;
+}
+
+export interface Annotation {
+  text: string;
+  cached: boolean;
+}
+
+/** Returns null (not a throw) when no AI annotation is available -- a
+ * missing API key, an unreachable model, or no prior reading to compare
+ * against are all expected, common states, not errors the caller should
+ * have to handle specially. The caller falls back to its own canned text. */
+export async function fetchAnnotation(observationId: number): Promise<Annotation | null> {
+  const res = await fetch(`${API_URL}/observations/${observationId}/annotate`, { method: "POST" });
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function fetchDocuments(): Promise<DocumentSummary[]> {

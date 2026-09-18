@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import type { Observation } from "./api";
+import { useEffect, useMemo, useState } from "react";
+import { fetchAnnotation, type Observation } from "./api";
 import Ribbon, { observationsToPoints, PADDING } from "./Ribbon";
 import { computeXScale, computeYScale } from "./ribbonScales";
 import { describeChange } from "./annotations";
@@ -18,9 +18,15 @@ const CARD_WIDTH = 220;
 // there's nothing meaningful to say about a moment between two readings)
 // plus a placard connected by a thin line to the exact point it describes,
 // per the plan's museum-exhibit framing -- spatially anchored, not a wall
-// of text sitting below the whole chart. describeChange() is deliberately
-// swappable: step 7 replaces its canned template with a real LLM call
-// without this component's layout changing.
+// of text sitting below the whole chart.
+//
+// Step 7: describeChange()'s canned template is the fallback, not the
+// primary source -- on each scrub this asks the backend for a real LLM
+// explanation (POST /observations/{id}/annotate) and swaps it in if one
+// comes back. A missing API key, a rate limit, or any API failure all
+// resolve to the same thing here: fetchAnnotation() returns null and the
+// canned text stays on screen, so an LLM outage degrades the card, it
+// never breaks it.
 export default function RibbonScrubber({ observations, display, width = 720, height = 260 }: Props) {
   const points = useMemo(() => observationsToPoints(observations), [observations]);
   const [activeIndex, setActiveIndex] = useState(() => Math.max(points.length - 1, 0));
@@ -34,7 +40,34 @@ export default function RibbonScrubber({ observations, display, width = 720, hei
   );
   const y = useMemo(() => computeYScale(points, innerHeight), [points, innerHeight]);
 
-  if (points.length < 2) {
+  const active = points[index];
+  const activeObs = active
+    ? observations.find((o) => o.observed_at && new Date(o.observed_at).getTime() === active.date.getTime())
+    : undefined;
+
+  const [aiText, setAiText] = useState<string | null>(activeObs?.llm_annotation ?? null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    if (!activeObs) return;
+    if (activeObs.llm_annotation) {
+      setAiText(activeObs.llm_annotation);
+      return;
+    }
+    let cancelled = false;
+    setAiText(null);
+    setAiLoading(true);
+    fetchAnnotation(activeObs.id).then((result) => {
+      if (cancelled) return;
+      setAiLoading(false);
+      if (result) setAiText(result.text);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeObs?.id]);
+
+  if (points.length < 2 || !active) {
     return (
       <div className="ribbon-empty">
         Not enough numeric data points to scrub yet (need at least 2 dated results for this analyte).
@@ -42,10 +75,8 @@ export default function RibbonScrubber({ observations, display, width = 720, hei
     );
   }
 
-  const active = points[index];
-  const unit =
-    observations.find((o) => o.observed_at && new Date(o.observed_at).getTime() === active.date.getTime())?.unit ?? null;
-  const text = describeChange(points, index, display, unit);
+  const cannedText = describeChange(points, index, display, activeObs?.unit ?? null);
+  const text = aiText ?? cannedText;
 
   const px = PADDING.left + x(active.date);
   const py = PADDING.top + y(active.value);
@@ -66,6 +97,8 @@ export default function RibbonScrubber({ observations, display, width = 720, hei
 
       <div className="annotation-card" style={{ left: cardLeft, top: cardTop, width: CARD_WIDTH }}>
         {text}
+        {aiLoading && <span className="annotation-card-source"> (asking AI...)</span>}
+        {!aiLoading && aiText && <span className="annotation-card-source"> — AI</span>}
       </div>
 
       <input

@@ -5,6 +5,7 @@ pydantic>=2.9
 pdfplumber>=0.11
 rapidfuzz>=3.11
 python-multipart>=0.0.20
+anthropic>=0.40
 
 # dev / test only -- builds synthetic lab-report PDF fixtures
 reportlab>=4.2

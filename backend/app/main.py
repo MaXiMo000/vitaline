@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from . import llm, models, schemas
 from .database import Base, engine, get_db
 from .pipeline.extract import UnreadablePDFError
 from .pipeline.observations import parse_document
@@ -97,3 +97,47 @@ def list_observations(
     if document_id is not None:
         query = query.where(models.Observation.document_id == document_id)
     return db.scalars(query).all()
+
+
+@app.post("/observations/{observation_id}/annotate", response_model=schemas.AnnotationOut)
+def annotate_observation(observation_id: int, db: Session = Depends(get_db)):
+    obs = db.get(models.Observation, observation_id)
+    if obs is None:
+        raise HTTPException(status_code=404, detail="observation not found")
+
+    if obs.llm_annotation:
+        return schemas.AnnotationOut(text=obs.llm_annotation, cached=True)
+
+    if obs.value is None or obs.observed_at is None or not obs.loinc_code:
+        raise HTTPException(status_code=422, detail="observation has no numeric, dated value to explain")
+
+    prev = db.scalar(
+        select(models.Observation)
+        .where(
+            models.Observation.loinc_code == obs.loinc_code,
+            models.Observation.observed_at < obs.observed_at,
+            models.Observation.value.is_not(None),
+        )
+        .order_by(models.Observation.observed_at.desc())
+    )
+    if prev is None:
+        # This is the first recorded point for this analyte -- the frontend's
+        # own canned "first recorded" message already covers this case, so
+        # there is no delta here for an LLM to explain.
+        raise HTTPException(status_code=422, detail="no prior reading to compare against")
+
+    try:
+        text = llm.generate_annotation(
+            display=obs.loinc_display or obs.raw_name, unit=obs.unit,
+            prev_value=prev.value, curr_value=obs.value,
+            prev_date=str(prev.observed_at), curr_date=str(obs.observed_at),
+            flag=obs.flag, prev_flag=prev.flag,
+        )
+    except llm.AnnotationUnavailable as exc:
+        # Never a 500 -- a missing key or a failed API call is an expected,
+        # handled state the frontend falls back to its own canned text for.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    obs.llm_annotation = text
+    db.commit()
+    return schemas.AnnotationOut(text=text, cached=False)

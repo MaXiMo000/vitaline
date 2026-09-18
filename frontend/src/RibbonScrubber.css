@@ -37,6 +37,11 @@
   pointer-events: none;
 }
 
+.annotation-card-source {
+  color: #666;
+  font-style: italic;
+}
+
 .scrubber-slider {
   width: 100%;
   margin-top: 8px;

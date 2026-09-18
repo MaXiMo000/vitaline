@@ -48,3 +48,7 @@ class Observation(Base):
 
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Cached on first successful call so scrubbing back to the same point
+    # doesn't re-charge the API -- see app/llm.py and POST /observations/{id}/annotate.
+    llm_annotation: Mapped[str | None] = mapped_column(Text, nullable=True)
