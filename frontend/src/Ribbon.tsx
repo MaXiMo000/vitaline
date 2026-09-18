@@ -8,6 +8,12 @@ interface Props {
   observations: Observation[]; // all rows for one loinc_code
   width?: number;
   height?: number;
+  // When several ribbons are stacked (MultiRibbon), they all need to share
+  // one time axis so a date lines up vertically across analytes -- without
+  // this, each ribbon would independently scale to its own first/last
+  // result and the stack wouldn't align.
+  domain?: [Date, Date];
+  showAxis?: boolean;
 }
 
 interface Point {
@@ -54,7 +60,7 @@ function buildStepGradientStops(points: Point[], xOf: (p: Point) => number, inne
   return stops;
 }
 
-export default function Ribbon({ observations, width = 720, height = 260 }: Props) {
+export default function Ribbon({ observations, width = 720, height = 260, domain, showAxis = true }: Props) {
   const points: Point[] = useMemo(
     () =>
       observations
@@ -70,12 +76,16 @@ export default function Ribbon({ observations, width = 720, height = 260 }: Prop
     [observations],
   );
 
+  const bottomPadding = showAxis ? PADDING.bottom : 8;
   const innerWidth = width - PADDING.left - PADDING.right;
-  const innerHeight = height - PADDING.top - PADDING.bottom;
+  const innerHeight = height - PADDING.top - bottomPadding;
 
   const x = useMemo(
-    () => scaleTime().domain([points[0]?.date ?? new Date(), points[points.length - 1]?.date ?? new Date()]).range([0, innerWidth]),
-    [points, innerWidth],
+    () =>
+      scaleTime()
+        .domain(domain ?? [points[0]?.date ?? new Date(), points[points.length - 1]?.date ?? new Date()])
+        .range([0, innerWidth]),
+    [points, innerWidth, domain],
   );
 
   const y = useMemo(() => {
@@ -130,11 +140,12 @@ export default function Ribbon({ observations, width = 720, height = 260 }: Prop
           </g>
         ))}
 
-        {points.map((p, i) => (
-          <text key={i} x={x(p.date)} y={innerHeight + 18} textAnchor="middle" className="ribbon-axis-label">
-            {p.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </text>
-        ))}
+        {showAxis &&
+          points.map((p, i) => (
+            <text key={i} x={x(p.date)} y={innerHeight + 18} textAnchor="middle" className="ribbon-axis-label">
+              {p.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </text>
+          ))}
       </g>
     </svg>
   );

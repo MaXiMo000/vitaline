@@ -1,0 +1,17 @@
+.multi-ribbon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.multi-ribbon-label {
+  width: 150px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #999;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

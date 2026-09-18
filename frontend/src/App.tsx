@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDocuments, fetchObservations, uploadDocument, type DocumentSummary, type Observation } from "./api";
 import Ribbon from "./Ribbon";
+import MultiRibbon from "./MultiRibbon";
 
 // Deliberately the plainest possible view: a sorted table, no chart, no
 // styling beyond what's needed to read it. This exists to prove the data
@@ -134,6 +135,11 @@ export default function App() {
             </div>
           </>
         )}
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 14 }}>All markers (step 4 — multi-ribbon layout)</h2>
+        <MultiRibbon observations={observations} />
       </section>
 
       <section>
