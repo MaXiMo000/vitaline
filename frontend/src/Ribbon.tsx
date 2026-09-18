@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { scaleLinear, scaleTime } from "d3-scale";
 import { area, curveCatmullRom, line } from "d3-shape";
 import type { Observation } from "./api";
+import { computeXScale, computeYScale } from "./ribbonScales";
 import "./Ribbon.css";
 
 interface Props {
@@ -14,9 +14,14 @@ interface Props {
   // result and the stack wouldn't align.
   domain?: [Date, Date];
   showAxis?: boolean;
+  // MultiRibbon renders several of these inside one shared <svg> (so
+  // tributary-merge connector lines can be drawn between rows in the same
+  // coordinate space) -- true renders a bare <g>, false renders the
+  // standalone <svg> wrapper for use on its own.
+  asGroup?: boolean;
 }
 
-interface Point {
+export interface Point {
   date: Date;
   value: number;
   refLow: number | null;
@@ -24,8 +29,8 @@ interface Point {
   flag: string;
 }
 
-const RIBBON_THICKNESS = 10;
-const PADDING = { top: 20, right: 20, bottom: 28, left: 20 };
+export const RIBBON_THICKNESS = 10;
+export const PADDING = { top: 20, right: 20, bottom: 28, left: 20 };
 const CURVE = curveCatmullRom.alpha(0.5);
 
 const FLAG_COLOR: Record<string, string> = {
@@ -38,6 +43,19 @@ const FLAG_COLOR: Record<string, string> = {
 
 function colorFor(flag: string): string {
   return FLAG_COLOR[flag] ?? FLAG_COLOR.unknown;
+}
+
+export function observationsToPoints(observations: Observation[]): Point[] {
+  return observations
+    .filter((o) => o.value !== null && o.observed_at)
+    .map((o) => ({
+      date: new Date(o.observed_at as string),
+      value: o.value as number,
+      refLow: o.ref_low,
+      refHigh: o.ref_high,
+      flag: o.flag,
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 /** A step gradient, not a blend: the ribbon holds each reading's color from
@@ -60,41 +78,20 @@ function buildStepGradientStops(points: Point[], xOf: (p: Point) => number, inne
   return stops;
 }
 
-export default function Ribbon({ observations, width = 720, height = 260, domain, showAxis = true }: Props) {
-  const points: Point[] = useMemo(
-    () =>
-      observations
-        .filter((o) => o.value !== null && o.observed_at)
-        .map((o) => ({
-          date: new Date(o.observed_at as string),
-          value: o.value as number,
-          refLow: o.ref_low,
-          refHigh: o.ref_high,
-          flag: o.flag,
-        }))
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
-    [observations],
-  );
+export default function Ribbon({
+  observations, width = 720, height = 260, domain, showAxis = true, asGroup = false,
+}: Props) {
+  const points: Point[] = useMemo(() => observationsToPoints(observations), [observations]);
 
   const bottomPadding = showAxis ? PADDING.bottom : 8;
   const innerWidth = width - PADDING.left - PADDING.right;
   const innerHeight = height - PADDING.top - bottomPadding;
 
   const x = useMemo(
-    () =>
-      scaleTime()
-        .domain(domain ?? [points[0]?.date ?? new Date(), points[points.length - 1]?.date ?? new Date()])
-        .range([0, innerWidth]),
+    () => computeXScale(domain ?? [points[0]?.date ?? new Date(), points[points.length - 1]?.date ?? new Date()], innerWidth),
     [points, innerWidth, domain],
   );
-
-  const y = useMemo(() => {
-    const allValues = points.flatMap((p) => [p.value, p.refLow ?? p.value, p.refHigh ?? p.value]);
-    const yMin = Math.min(...allValues);
-    const yMax = Math.max(...allValues);
-    const pad = (yMax - yMin) * 0.2 || Math.abs(yMax) * 0.2 || 1;
-    return scaleLinear().domain([yMin - pad, yMax + pad]).range([innerHeight, 0]);
-  }, [points, innerHeight]);
+  const y = useMemo(() => computeYScale(points, innerHeight), [points, innerHeight]);
 
   if (points.length < 2) {
     return (
@@ -116,8 +113,8 @@ export default function Ribbon({ observations, width = 720, height = 260, domain
   const stops = buildStepGradientStops(points, (p) => x(p.date), innerWidth);
   const outOfRange = points.filter((p) => p.flag === "high" || p.flag === "low" || p.flag === "abnormal");
 
-  return (
-    <svg width={width} height={height} className="ribbon-svg">
+  const content = (
+    <g transform={`translate(${PADDING.left},${PADDING.top})`}>
       <defs>
         <linearGradient id={gradientId} x1="0" x2="1" y1="0" y2="0">
           {stops.map((s, i) => (
@@ -125,28 +122,33 @@ export default function Ribbon({ observations, width = 720, height = 260, domain
           ))}
         </linearGradient>
       </defs>
-      <g transform={`translate(${PADDING.left},${PADDING.top})`}>
-        {channelArea && <path d={channelArea} className="ribbon-channel-fill" />}
-        {channelTop && <path d={channelTop} className="ribbon-channel-wall" />}
-        {channelBottom && <path d={channelBottom} className="ribbon-channel-wall" />}
+      {channelArea && <path d={channelArea} className="ribbon-channel-fill" />}
+      {channelTop && <path d={channelTop} className="ribbon-channel-wall" />}
+      {channelBottom && <path d={channelBottom} className="ribbon-channel-wall" />}
 
-        <path d={valueLine(points) ?? ""} className="ribbon-body" stroke={`url(#${gradientId})`} strokeWidth={RIBBON_THICKNESS} />
-        <path d={valueLine(points) ?? ""} className="ribbon-centerline" />
+      <path d={valueLine(points) ?? ""} className="ribbon-body" stroke={`url(#${gradientId})`} strokeWidth={RIBBON_THICKNESS} />
+      <path d={valueLine(points) ?? ""} className="ribbon-centerline" />
 
-        {outOfRange.map((p, i) => (
-          <g key={i} transform={`translate(${x(p.date)},${y(p.value)})`}>
-            <circle r={4} className="ribbon-flood-dot" />
-            <circle r={4} className="ribbon-flood-ripple" style={{ animationDelay: `${i * 0.3}s` }} />
-          </g>
+      {outOfRange.map((p, i) => (
+        <g key={i} transform={`translate(${x(p.date)},${y(p.value)})`}>
+          <circle r={4} className="ribbon-flood-dot" />
+          <circle r={4} className="ribbon-flood-ripple" style={{ animationDelay: `${i * 0.3}s` }} />
+        </g>
+      ))}
+
+      {showAxis &&
+        points.map((p, i) => (
+          <text key={i} x={x(p.date)} y={innerHeight + 18} textAnchor="middle" className="ribbon-axis-label">
+            {p.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </text>
         ))}
+    </g>
+  );
 
-        {showAxis &&
-          points.map((p, i) => (
-            <text key={i} x={x(p.date)} y={innerHeight + 18} textAnchor="middle" className="ribbon-axis-label">
-              {p.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-            </text>
-          ))}
-      </g>
+  if (asGroup) return content;
+  return (
+    <svg width={width} height={height} className="ribbon-svg">
+      {content}
     </svg>
   );
 }
