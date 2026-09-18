@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDocuments, fetchObservations, uploadDocument, type DocumentSummary, type Observation } from "./api";
-import Ribbon from "./Ribbon";
 import MultiRibbon from "./MultiRibbon";
+import RibbonScrubber from "./RibbonScrubber";
 
 // Deliberately the plainest possible view: a sorted table, no chart, no
 // styling beyond what's needed to read it. This exists to prove the data
@@ -113,7 +113,7 @@ export default function App() {
       </section>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14 }}>Trend (step 3 — single-ribbon renderer)</h2>
+        <h2 style={{ fontSize: 14 }}>Trend (step 6 — scrubber + anchored annotation)</h2>
         {analytes.length === 0 ? (
           <p style={{ opacity: 0.6, fontSize: 12 }}>
             Upload at least two dated reports with a shared analyte to see a ribbon.
@@ -131,7 +131,10 @@ export default function App() {
               </select>
             </label>
             <div style={{ marginTop: 12 }}>
-              <Ribbon observations={ribbonObservations} />
+              <RibbonScrubber
+                observations={ribbonObservations}
+                display={analytes.find((a) => a.loincCode === activeLoinc)?.display ?? "Value"}
+              />
             </div>
           </>
         )}

@@ -1,0 +1,43 @@
+.scrubber-container {
+  position: relative;
+}
+
+.scrubber-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.scrubber-connector {
+  stroke: #999;
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.scrubber-point {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 1.5;
+}
+
+/* The museum-placard card: a small, spatially-anchored note rather than a
+   paragraph of text sitting below the whole chart. */
+.annotation-card {
+  position: absolute;
+  max-width: 240px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ddd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.scrubber-slider {
+  width: 100%;
+  margin-top: 8px;
+}
