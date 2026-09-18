@@ -1,0 +1,37 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #111;
+  color: #eee;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+th, td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid #262626;
+}
+
+th {
+  color: #999;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+tr:hover td {
+  background: #1a1a1a;
+}

@@ -36,4 +36,29 @@ Personal-health apps present lab trends as generic line charts in a dashboard �
 
 ## Status
 
-Scaffold stage — step 1 in progress.
+- **Step 1 (port the lab-parsing pipeline) — done, standalone, verified end-to-end.** `backend/app/pipeline/` vendors `extract.py` (PDF → raw rows) and `units.py` (audited conversion factors) verbatim from this author's LabLedger project, plus `ranges.py` + `app/data/reference_config.py` (reference-interval resolution and flagging), both fully self-contained — no database coupling to carry over. `mapping.py` (printed name → LOINC code) is a **deliberately smaller** rewrite: LabLedger's own cascade has a learned-alias stage and an LLM-adjudication stage, both of which need a database Vitaline doesn't have yet; this ports only the two fully deterministic stages (exact match, then specimen-narrowed fuzzy match via `rapidfuzz`) against the vendored LOINC subset (`backend/data/loinc_lab.csv.gz`, 58k entries, carried over with its license — see `LOINC_LICENSE.txt`). `observations.py` sequences all four into one `Observation` record per row.
+  - **A real bug was caught and fixed during this port**: the initial exact-match tie-break picked the *highest* `COMMON_TEST_RANK` among candidates, which is backwards — LOINC ranks 1 as the single most commonly ordered test and climbs from there, with `0` meaning "not ranked" rather than "most common." This was silently resolving common analytes (glucose, sodium, ferritin) to obscure dialysis-fluid/24-hour-urine variants of the same name, which in turn meant `units.py`'s per-LOINC-code conversion table never matched and every value looked unconvertible. Caught by testing against a real synthetic report before building anything on top of it, not discovered later.
+  - Verified with a real synthetic PDF (`backend/tests/fixtures.py`, built with `reportlab` the same way LabLedger builds its own test fixtures): 7 passing tests (`backend/tests/test_observations.py`) covering exact LOINC resolution, an out-of-range flag, an audited non-1.0 unit conversion (µmol/L → mg/dL for creatinine), a qualitative (non-numeric) result, and the "don't guess a reference range without sex/age data" case.
+- **Step 2 (flat table view) — done, verified end-to-end.** `backend/app/main.py` (FastAPI) exposes `POST /documents` (upload a PDF, get back parsed observations, persisted) and `GET /documents` / `GET /observations`. `frontend/` (Vite + React + TS) is a plain sorted table, no chart — proves the full pipeline through a real HTTP upload and a real browser render before any time goes into the ribbon renderer. Verified live: uploaded the same synthetic PDF through the actual `<input type=file>` (not just via `curl`), confirmed both documents and all 10 observations (two uploads) render correctly.
+- **Deviation from the original architecture note, and why:** the plan said "FastAPI + MongoDB." This uses FastAPI + SQLAlchemy (SQLite by default, `DATABASE_URL` env var for Postgres) instead — the same pattern already proven out in this author's Playhead project. Mongo/Beanie is what LabLedger's *full* mapping cascade (user alias learning, review queue) would need to stay consistent with that project, but this step doesn't build that cascade yet, so there was nothing Mongo-specific to justify the extra setup friction right now. Worth revisiting if/when the LLM-adjudication and alias-learning stages get ported.
+- **Inherited limitation, stated honestly, not silently dropped:** `extract.py` has no OCR path — a scanned, image-only PDF (no text layer) will extract zero rows. LabLedger's own docstring flags this as a known gap, not fixed here either.
+- **Not started:** the river renderer and everything after it (steps 3-8).
+
+### Running locally
+
+```
+cd backend
+python -m venv .venv && .venv/Scripts/activate  # or source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+```
+cd frontend
+npm install
+VITE_API_URL=http://localhost:8000 npm run dev
+```
+
+### LOINC attribution
+
+`backend/data/loinc_lab.csv.gz` is a filtered subset of the LOINC Table (see `backend/data/loinc_manifest.json` for the exact filter and release version), used under the LOINC License (`backend/data/LOINC_LICENSE.txt`). LOINC® is a registered trademark of Regenstrief Institute, Inc.
