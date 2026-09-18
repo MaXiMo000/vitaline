@@ -43,6 +43,12 @@ export async function fetchObservations(): Promise<Observation[]> {
   return res.json();
 }
 
+export async function fetchObservationsByDocument(documentId: number): Promise<Observation[]> {
+  const res = await fetch(`${API_URL}/observations?document_id=${documentId}`);
+  if (!res.ok) throw new Error(`GET /observations?document_id failed: ${res.status}`);
+  return res.json();
+}
+
 export async function uploadDocument(file: File): Promise<DocumentSummary> {
   const formData = new FormData();
   formData.append("file", file);

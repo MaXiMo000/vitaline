@@ -1,0 +1,75 @@
+.intake-slip {
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 16px;
+  background: #161616;
+  font-size: 12px;
+}
+
+.intake-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px dashed #333;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.intake-title {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #999;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.intake-meta {
+  color: #666;
+  font-size: 11px;
+}
+
+.intake-status {
+  color: #7ee787;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.intake-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.intake-table td {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+/* Each row wipes in left-to-right, like a scanner passing over the line --
+   a paced reveal of a response that already fully arrived, not a live feed
+   of the actual PDF parser (extract.py runs synchronously and returns
+   everything at once; staged like this so the user watches their report
+   being read row by row instead of a spinner, without pretending this is
+   real-time OCR progress). */
+.intake-row {
+  animation: intake-wipe 420ms ease forwards;
+  clip-path: inset(0 100% 0 0);
+  opacity: 0;
+}
+
+@keyframes intake-wipe {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+.intake-review-flag {
+  color: #ff8800;
+}

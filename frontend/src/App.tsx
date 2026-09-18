@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchDocuments, fetchObservations, uploadDocument, type DocumentSummary, type Observation } from "./api";
+import { fetchDocuments, fetchObservations, type DocumentSummary, type Observation } from "./api";
 import MultiRibbon from "./MultiRibbon";
 import RibbonScrubber from "./RibbonScrubber";
+import SpecimenIntake from "./SpecimenIntake";
 
 // Deliberately the plainest possible view: a sorted table, no chart, no
 // styling beyond what's needed to read it. This exists to prove the data
@@ -25,7 +26,6 @@ export default function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [observations, setObservations] = useState<Observation[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [selectedLoinc, setSelectedLoinc] = useState<string | null>(null);
 
   const reload = () => {
@@ -34,22 +34,6 @@ export default function App() {
   };
 
   useEffect(reload, []);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    try {
-      await uploadDocument(file);
-      reload();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  };
 
   const sorted = [...observations].sort((a, b) => {
     const dateDiff = (a.observed_at ?? "").localeCompare(b.observed_at ?? "");
@@ -81,11 +65,8 @@ export default function App() {
       {error && <p style={{ color: "#f66" }}>{error}</p>}
 
       <section style={{ marginBottom: 24 }}>
-        <label>
-          Upload a lab report (PDF):{" "}
-          <input type="file" accept="application/pdf" onChange={handleUpload} disabled={uploading} />
-        </label>
-        {uploading && <span style={{ marginLeft: 8, opacity: 0.7 }}>parsing...</span>}
+        <h2 style={{ fontSize: 14 }}>Upload (step 8 — specimen intake)</h2>
+        <SpecimenIntake onUploaded={reload} />
       </section>
 
       <section style={{ marginBottom: 24 }}>

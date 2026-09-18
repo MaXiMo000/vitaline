@@ -88,8 +88,12 @@ def list_documents(db: Session = Depends(get_db)):
 
 
 @app.get("/observations", response_model=list[schemas.ObservationOut])
-def list_observations(loinc_code: str | None = None, db: Session = Depends(get_db)):
+def list_observations(
+    loinc_code: str | None = None, document_id: int | None = None, db: Session = Depends(get_db),
+):
     query = select(models.Observation).order_by(models.Observation.observed_at)
     if loinc_code:
         query = query.where(models.Observation.loinc_code == loinc_code)
+    if document_id is not None:
+        query = query.where(models.Observation.document_id == document_id)
     return db.scalars(query).all()
