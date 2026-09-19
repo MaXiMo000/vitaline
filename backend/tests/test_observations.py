@@ -24,7 +24,13 @@ class TestBuildObservations(unittest.TestCase):
         }
 
     def test_all_rows_extracted(self):
-        self.assertEqual(len(self.obs_by_name), 5)
+        self.assertEqual(len(self.obs_by_name), 6)
+
+    def test_hemoglobin_resolves_and_flags_correctly(self):
+        o = self.obs_by_name["HEMOGLOBIN"]
+        self.assertEqual(o.loinc_code, "718-7")  # Hemoglobin [Mass/Vol]
+        self.assertEqual(o.value, 13.5)
+        self.assertEqual(o.flag, "normal")
 
     def test_normal_value_maps_and_flags_correctly(self):
         o = self.obs_by_name["GLUCOSE"]

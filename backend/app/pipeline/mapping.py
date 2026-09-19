@@ -102,13 +102,27 @@ def resolve(printed_name: str, specimen: str | None = None) -> MappingResult:
 
     candidates = _exact_index().get(norm)
     if candidates:
+        # A real ambiguity, found by testing, not assumed: LOINC's own
+        # COMPONENT field for a per-cell index like MCHC is literally
+        # "Hemoglobin" (MCHC *is* a hemoglobin concentration, per red
+        # cell) -- so indexing on bare COMPONENT alone (needed for plain
+        # printed names like "GLUCOSE" that never match a more specific
+        # field) also pulls in indices that share the same component but
+        # mean something else entirely. A bare printed name on a report
+        # means the substance's own concentration, not a derived per-cell
+        # index, so entitic properties (the "Ent*" prefix) are deprioritized
+        # first -- but never dropped outright if they're all there is,
+        # same "never exclude the correct answer" rule used for specimen
+        # narrowing above.
+        non_entitic = [e for e in candidates if not e.property.startswith("Ent")]
+        pool = non_entitic or candidates
         # Ties are common (several analytes share a display name across
         # specimens). LOINC's COMMON_TEST_RANK is 1 for the single most
         # frequently ordered test overall and climbs from there -- 0 means
         # "not in the ranked set at all," the opposite of "most common,"
         # so it's excluded from the comparison rather than winning it.
-        ranked = [e for e in candidates if e.common_test_rank > 0]
-        best = min(ranked, key=lambda e: e.common_test_rank) if ranked else candidates[0]
+        ranked = [e for e in pool if e.common_test_rank > 0]
+        best = min(ranked, key=lambda e: e.common_test_rank) if ranked else pool[0]
         return MappingResult(stage="exact", loinc_code=best.loinc_code,
                               loinc_display=best.display_name, confidence=0.95)
 

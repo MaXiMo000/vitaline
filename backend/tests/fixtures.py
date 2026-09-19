@@ -26,21 +26,29 @@ def _flag_for(value: float, low: float, high: float) -> str:
     return ""
 
 
+HEMOGLOBIN_RANGE = (12.0, 15.5)
+
+
 def make_sample_pdf(
     visit_date: str = "03/14/2026", ferritin_value: float = 18, glucose_value: float = 95,
+    hemoglobin_value: float = 13.5,
 ) -> bytes:
-    """visit_date, ferritin_value, and glucose_value are parameterized so
-    tests/scripts can generate a multi-visit series -- including two
-    analytes trending together, for the tributary-merge correlation
-    feature -- without duplicating this whole layout per call site. Every
-    other row stays fixed -- they exist to exercise the pipeline's other
-    behaviors (unit conversion, qualitative results), not to trend."""
+    """visit_date, ferritin_value, glucose_value, and hemoglobin_value are
+    parameterized so tests/scripts can generate a multi-visit series --
+    including analytes trending together, for the tributary-merge
+    correlation feature -- without duplicating this whole layout per call
+    site. Ferritin and hemoglobin declining together is a real clinical
+    pattern (iron-deficiency anemia), not just a contrived correlated pair.
+    Every other row stays fixed -- they exist to exercise the pipeline's
+    other behaviors (unit conversion, qualitative results), not to trend."""
     ferritin_flag = _flag_for(ferritin_value, *FERRITIN_RANGE)
     glucose_flag = _flag_for(glucose_value, 65, 99)
+    hemoglobin_flag = _flag_for(hemoglobin_value, *HEMOGLOBIN_RANGE)
     # (name, value, unit, printed_range, flag)
     rows = [
         ("GLUCOSE", str(glucose_value), "mg/dL", "65-99", glucose_flag),
         ("FERRITIN, SERUM", str(ferritin_value), "ng/mL", "24-336", ferritin_flag),
+        ("HEMOGLOBIN", str(hemoglobin_value), "g/dL", "12.0-15.5", hemoglobin_flag),
         ("SODIUM", "140", "mmol/L", "134-144", ""),
         # Printed in umol/L specifically to exercise units.to_canonical's
         # non-1.0 factor (0.0113 -> mg/dL) rather than the trivial 1.0 case.
