@@ -58,19 +58,33 @@ Personal-health apps present lab trends as generic line charts in a dashboard �
   - **No key is committed, and none was requested from the user for this session** — `backend/.env.example` documents `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`; copy it to `.env` (git-ignored) with your own key to activate it.
   - Verified live end-to-end *except* the success path, which needs a real key this session was never given: confirmed the 503-graceful-fallback with no key set, confirmed the 422 "no prior reading" case for the first point in a series, confirmed the 404 for a bad id, and — importantly — confirmed the request actually reaches Anthropic's real API and gets a real, correctly-handled `401 authentication_error` back when given a syntactically-valid-but-fake key, which then correctly degrades to the canned card text with no "— AI" tag in the browser. Add a real key and re-check the success path (a genuine model-generated sentence, tagged "— AI" in the card) before relying on this being live.
 
+## Security
+
+This is a single-user personal health tool, not a multi-tenant product, and the security posture below is sized to that threat model.
+
+- **API key auth** (`backend/app/security.py`): every endpoint except `/health` requires `Authorization: Bearer <VITALINE_API_KEY>` once that env var is set. Unset, the server runs open and prints a loud startup warning — that matters more here than in a typical demo, since an open `/documents` endpoint lets anyone upload PDFs and an open `/annotate` endpoint lets anyone run up your Anthropic bill. The same key must also be set as `VITE_API_KEY` for the frontend or every request 401s. **Honestly stated limitation**: the key ships inside the built frontend bundle, readable by anyone who loads the page — this stops opportunistic bots/scanners, not a targeted attacker reading the bundle; real multi-user auth is out of scope for what this project is.
+- **CORS is a real allowlist** (`ALLOWED_ORIGINS`), not `*`.
+- **Rate limiting** (`slowapi`): 10/minute on `POST /documents` (parsing a PDF isn't free), 20/minute on `POST /observations/{id}/annotate` (neither are Anthropic calls). Verified live: 12 rapid uploads returned exactly 10×`201` then 2×`429`.
+- **Request body size cap**: 15MB (generous for a lab PDF), checked via `Content-Length` before the body is read. Verified live: a request declaring a 16MB body gets `413` immediately.
+- **Security headers** (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) on every response.
+- **SQLite has no encryption at rest, and that is not fixed here** — same finding as Playhead: no working `sqlcipher3-binary` wheel for this platform. Use Postgres (`DATABASE_URL`) for anything beyond solo local use.
+- **Already fine, no changes needed**: no XSS risk (React escapes all rendered text), no SQL injection risk (SQLAlchemy ORM throughout). The Anthropic prompt in `llm.py` only ever receives numbers, dates, and a LOINC display name it already controls — no free-text user input reaches that prompt.
+
 ### Running locally
 
 ```
 cd backend
 python -m venv .venv && .venv/Scripts/activate  # or source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # fill in ANTHROPIC_API_KEY and VITALINE_API_KEY
 uvicorn app.main:app --reload
 ```
 
 ```
 cd frontend
 npm install
-VITE_API_URL=http://localhost:8000 npm run dev
+cp .env.example .env.local   # set VITE_API_KEY to match VITALINE_API_KEY
+npm run dev
 ```
 
 ### LOINC attribution

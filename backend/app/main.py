@@ -1,21 +1,39 @@
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+import os
+
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import llm, models, schemas
 from .database import Base, engine, get_db
+from .middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
 from .pipeline.extract import UnreadablePDFError
 from .pipeline.observations import parse_document
+from .security import verify_api_key
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Vitaline API")
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(MaxBodySizeMiddleware)
+
+# Real origin allowlist, not "*" -- set ALLOWED_ORIGINS (comma-separated) for
+# any deployment beyond default local dev ports.
+_default_origins = "http://localhost:5173,http://localhost:5174,http://localhost:5185,http://127.0.0.1:5173"
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", _default_origins).split(",")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"],
 )
 
 
@@ -24,8 +42,12 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/documents", response_model=schemas.DocumentOut, status_code=201)
-async def upload_document(file: UploadFile, db: Session = Depends(get_db)):
+@app.post(
+    "/documents", response_model=schemas.DocumentOut, status_code=201,
+    dependencies=[Depends(verify_api_key)],
+)
+@limiter.limit("10/minute")
+async def upload_document(request: Request, file: UploadFile, db: Session = Depends(get_db)):
     pdf_bytes = await file.read()
     try:
         extracted, observations = parse_document(pdf_bytes, source_doc_id=file.filename or "upload")
@@ -67,7 +89,7 @@ async def upload_document(file: UploadFile, db: Session = Depends(get_db)):
     )
 
 
-@app.get("/documents", response_model=list[schemas.DocumentOut])
+@app.get("/documents", response_model=list[schemas.DocumentOut], dependencies=[Depends(verify_api_key)])
 def list_documents(db: Session = Depends(get_db)):
     rows = db.execute(
         select(
@@ -87,7 +109,7 @@ def list_documents(db: Session = Depends(get_db)):
     ]
 
 
-@app.get("/observations", response_model=list[schemas.ObservationOut])
+@app.get("/observations", response_model=list[schemas.ObservationOut], dependencies=[Depends(verify_api_key)])
 def list_observations(
     loinc_code: str | None = None, document_id: int | None = None, db: Session = Depends(get_db),
 ):
@@ -99,8 +121,12 @@ def list_observations(
     return db.scalars(query).all()
 
 
-@app.post("/observations/{observation_id}/annotate", response_model=schemas.AnnotationOut)
-def annotate_observation(observation_id: int, db: Session = Depends(get_db)):
+@app.post(
+    "/observations/{observation_id}/annotate", response_model=schemas.AnnotationOut,
+    dependencies=[Depends(verify_api_key)],
+)
+@limiter.limit("20/minute")
+def annotate_observation(request: Request, observation_id: int, db: Session = Depends(get_db)):
     obs = db.get(models.Observation, observation_id)
     if obs is None:
         raise HTTPException(status_code=404, detail="observation not found")
