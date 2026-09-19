@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { fetchObservationsByDocument, uploadDocument, type DocumentSummary, type Observation } from "./api";
 import "./SpecimenIntake.css";
 
@@ -19,6 +19,7 @@ export default function SpecimenIntake({ onUploaded }: Props) {
   const [doc, setDoc] = useState<DocumentSummary | null>(null);
   const [rows, setRows] = useState<Observation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,20 +44,31 @@ export default function SpecimenIntake({ onUploaded }: Props) {
 
   return (
     <div>
-      <label>
-        Upload a lab report (PDF):{" "}
-        <input type="file" accept="application/pdf" onChange={handleFile} disabled={phase === "uploading"} />
-      </label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        onChange={handleFile}
+        disabled={phase === "uploading"}
+        style={{ display: "none" }}
+      />
+      <button
+        className="intake-upload-button"
+        onClick={() => inputRef.current?.click()}
+        disabled={phase === "uploading"}
+      >
+        {phase === "uploading" ? "Reading..." : "＋ Upload lab report (PDF)"}
+      </button>
 
-      {error && <p style={{ color: "#f66" }}>{error}</p>}
+      {error && <p className="intake-error">{error}</p>}
 
       {phase !== "idle" && (
-        <div className="intake-slip" style={{ marginTop: 12 }}>
+        <div className="intake-slip">
           <div className="intake-header">
             <span className="intake-title">Specimen intake</span>
-            <span className="intake-meta">
-              {doc?.filename ?? "reading..."} {doc?.lab_name ? `— ${doc.lab_name}` : ""}
-            </span>
+          </div>
+          <div className="intake-meta">
+            {doc?.filename ?? "reading..."} {doc?.lab_name ? `— ${doc.lab_name}` : ""}
           </div>
 
           {phase === "uploading" && <p className="intake-status">extracting rows...</p>}
@@ -66,22 +78,22 @@ export default function SpecimenIntake({ onUploaded }: Props) {
             </p>
           )}
 
-          <table className="intake-table">
-            <tbody>
-              {rows.map((o, i) => (
-                <tr key={o.id} className="intake-row" style={{ animationDelay: `${i * 90}ms` }}>
-                  <td>{o.raw_name}</td>
-                  <td>
-                    {o.value !== null ? `${o.operator ?? ""}${o.value}` : (o.qualitative_text ?? "—")} {o.unit ?? ""}
-                  </td>
-                  <td>{o.loinc_code ?? "—"}</td>
-                  <td className={o.needs_review ? "intake-review-flag" : undefined}>
-                    {o.needs_review ? "⚠ needs review" : o.flag}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="intake-rows">
+            {rows.map((o, i) => (
+              <div key={o.id} className="intake-row" style={{ animationDelay: `${i * 90}ms` }}>
+                <div className="intake-row-top">
+                  <span className="intake-row-name">{o.raw_name}</span>
+                  <span className={o.needs_review ? "intake-review-flag" : `flag-${o.flag}`}>
+                    {o.needs_review ? "⚠" : o.flag}
+                  </span>
+                </div>
+                <div className="intake-row-bottom">
+                  {o.value !== null ? `${o.operator ?? ""}${o.value} ${o.unit ?? ""}` : (o.qualitative_text ?? "—")}
+                  {o.loinc_code && ` · ${o.loinc_code}`}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

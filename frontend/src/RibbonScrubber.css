@@ -10,15 +10,16 @@
 }
 
 .scrubber-connector {
-  stroke: #999;
+  stroke: var(--text-faint);
   stroke-width: 1;
   stroke-dasharray: 2 2;
 }
 
 .scrubber-point {
   fill: #fff;
-  stroke: #111;
-  stroke-width: 1.5;
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
 }
 
 /* The museum-placard card: a small, spatially-anchored note rather than a
@@ -26,23 +27,24 @@
 .annotation-card {
   position: absolute;
   max-width: 240px;
-  background: #1c1c1c;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #ddd;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
 
 .annotation-card-source {
-  color: #666;
+  color: var(--text-faint);
   font-style: italic;
 }
 
 .scrubber-slider {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 10px;
+  accent-color: var(--accent);
 }

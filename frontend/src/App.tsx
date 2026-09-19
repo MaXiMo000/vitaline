@@ -3,23 +3,15 @@ import { fetchDocuments, fetchObservations, type DocumentSummary, type Observati
 import MultiRibbon from "./MultiRibbon";
 import RibbonScrubber from "./RibbonScrubber";
 import SpecimenIntake from "./SpecimenIntake";
-
-// Deliberately the plainest possible view: a sorted table, no chart, no
-// styling beyond what's needed to read it. This exists to prove the data
-// model (PDF -> LOINC-mapped, unit-converted, range-flagged observations)
-// is complete and correct before any time goes into the real river
-// renderer.
-const FLAG_COLOR: Record<string, string> = {
-  high: "#ff7b72",
-  low: "#ffb84a",
-  abnormal: "#ff7b72",
-  normal: "#7ee787",
-  unknown: "#888",
-};
+import "./App.css";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString();
+}
+
+function flagClass(flag: string): string {
+  return `flag-${flag}`;
 }
 
 export default function App() {
@@ -59,110 +51,130 @@ export default function App() {
   const ribbonObservations = observations.filter((o) => o.loinc_code === activeLoinc);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 20 }}>Vitaline</h1>
+    <div className="app-root">
+      <header className="app-topbar">
+        <div className="app-logo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M3 15C5 12 7 12 9 15C11 18 13 18 15 15C17 12 19 12 21 15"
+              stroke="white" strokeWidth="2.4" strokeLinecap="round" fill="none"
+            />
+          </svg>
+        </div>
+        <h1 className="app-title">Vitaline</h1>
+        <span className="app-subtitle">A longitudinal health timeline that reads like a river</span>
+      </header>
 
-      {error && <p style={{ color: "#f66" }}>{error}</p>}
+      {error && <div className="app-error">{error}</div>}
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14 }}>Upload (step 8 — specimen intake)</h2>
-        <SpecimenIntake onUploaded={reload} />
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14 }}>Documents ({documents.length})</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Filename</th>
-              <th>Lab</th>
-              <th>Uploaded</th>
-              <th>Observations</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.map((d) => (
-              <tr key={d.id}>
-                <td>{d.filename}</td>
-                <td>{d.lab_name ?? "—"}</td>
-                <td>{formatDate(d.uploaded_at)}</td>
-                <td>{d.observation_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14 }}>Trend (step 6 — scrubber + anchored annotation)</h2>
-        {analytes.length === 0 ? (
-          <p style={{ opacity: 0.6, fontSize: 12 }}>
-            Upload at least two dated reports with a shared analyte to see a ribbon.
-          </p>
-        ) : (
-          <>
-            <label>
-              Analyte:{" "}
-              <select value={activeLoinc ?? ""} onChange={(e) => setSelectedLoinc(e.target.value)}>
-                {analytes.map((a) => (
-                  <option key={a.loincCode} value={a.loincCode}>
-                    {a.display} ({a.count} results)
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div style={{ marginTop: 12 }}>
-              <RibbonScrubber
-                observations={ribbonObservations}
-                display={analytes.find((a) => a.loincCode === activeLoinc)?.display ?? "Value"}
-              />
+      <div className="app-body">
+        <aside className="app-sidebar">
+          <div>
+            <div className="section-heading">
+              <span className="eyebrow">Upload</span>
             </div>
-          </>
-        )}
-      </section>
+            <SpecimenIntake onUploaded={reload} />
+          </div>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14 }}>All markers (step 4 — multi-ribbon layout)</h2>
-        <MultiRibbon observations={observations} />
-      </section>
+          <div>
+            <div className="section-heading">
+              <span className="eyebrow">Documents ({documents.length})</span>
+            </div>
+            {documents.length === 0 ? (
+              <div className="document-list-empty">No reports uploaded yet.</div>
+            ) : (
+              <div className="document-list">
+                {documents.map((d) => (
+                  <div key={d.id} className="document-row">
+                    <div className="document-row-name">{d.filename}</div>
+                    <div className="document-row-meta">
+                      {d.lab_name ?? "unknown lab"} · {formatDate(d.uploaded_at)} · {d.observation_count} results
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
 
-      <section>
-        <h2 style={{ fontSize: 14 }}>Observations ({sorted.length})</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Test</th>
-              <th>LOINC</th>
-              <th>Value</th>
-              <th>Unit</th>
-              <th>Range</th>
-              <th>Flag</th>
-              <th>Mapping</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((o) => (
-              <tr key={o.id} title={o.review_reason ?? undefined}>
-                <td>{formatDate(o.observed_at)}</td>
-                <td>{o.raw_name}</td>
-                <td>{o.loinc_code ?? (o.needs_review ? "⚠ unmapped" : "—")}</td>
-                <td>
-                  {o.value !== null
-                    ? `${o.operator ?? ""}${Math.round(o.value * 1000) / 1000}`
-                    : (o.qualitative_text ?? "—")}
-                </td>
-                <td>{o.unit ?? "—"}</td>
-                <td>{o.ref_low !== null || o.ref_high !== null ? `${o.ref_low ?? ""}–${o.ref_high ?? ""}` : "—"}</td>
-                <td style={{ color: FLAG_COLOR[o.flag] ?? "#ccc" }}>{o.flag}</td>
-                <td style={{ opacity: 0.6, fontSize: 11 }}>
-                  {o.mapping_stage} {o.needs_review && "⚠"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        <main className="app-main">
+          <div className="card section-card">
+            <div className="section-heading">
+              <span className="eyebrow">Trend</span>
+            </div>
+            {analytes.length === 0 ? (
+              <div className="app-empty-state">
+                Upload at least two dated reports with a shared analyte to see a ribbon.
+              </div>
+            ) : (
+              <>
+                <select
+                  className="analyte-select"
+                  value={activeLoinc ?? ""}
+                  onChange={(e) => setSelectedLoinc(e.target.value)}
+                >
+                  {analytes.map((a) => (
+                    <option key={a.loincCode} value={a.loincCode}>
+                      {a.display} ({a.count} results)
+                    </option>
+                  ))}
+                </select>
+                <RibbonScrubber
+                  observations={ribbonObservations}
+                  display={analytes.find((a) => a.loincCode === activeLoinc)?.display ?? "Value"}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="card section-card">
+            <div className="section-heading">
+              <span className="eyebrow">All markers</span>
+            </div>
+            <MultiRibbon observations={observations} />
+          </div>
+
+          <div className="card section-card">
+            <div className="section-heading">
+              <span className="eyebrow">Observations ({sorted.length})</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Test</th>
+                  <th>LOINC</th>
+                  <th>Value</th>
+                  <th>Unit</th>
+                  <th>Range</th>
+                  <th>Flag</th>
+                  <th>Mapping</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((o) => (
+                  <tr key={o.id} title={o.review_reason ?? undefined}>
+                    <td>{formatDate(o.observed_at)}</td>
+                    <td>{o.raw_name}</td>
+                    <td>{o.loinc_code ?? (o.needs_review ? "⚠ unmapped" : "—")}</td>
+                    <td>
+                      {o.value !== null
+                        ? `${o.operator ?? ""}${Math.round(o.value * 1000) / 1000}`
+                        : (o.qualitative_text ?? "—")}
+                    </td>
+                    <td>{o.unit ?? "—"}</td>
+                    <td>{o.ref_low !== null || o.ref_high !== null ? `${o.ref_low ?? ""}–${o.ref_high ?? ""}` : "—"}</td>
+                    <td className={flagClass(o.flag)}>{o.flag}</td>
+                    <td className={o.needs_review ? "review-warning" : undefined}>
+                      {o.mapping_stage} {o.needs_review && "⚠"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

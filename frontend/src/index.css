@@ -1,37 +1,108 @@
 :root {
   color-scheme: dark;
-  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+
+  /* A teal-tinted near-black -- the "river" identity, distinct from
+     Playhead's blue -- with three levels of elevation so cards read as
+     raised rather than painted on. */
+  --bg: #090f0f;
+  --bg-gradient: radial-gradient(ellipse 1200px 600px at 50% -10%, #0e1a1a 0%, #090f0f 60%);
+  --surface: #101717;
+  --surface-2: #141d1d;
+  --surface-3: #1a2626;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text: #e9f1f0;
+  --text-dim: #9ab0ae;
+  --text-faint: #5c7472;
+
+  --accent: #2dd4bf;
+  --accent-glow: rgba(45, 212, 191, 0.4);
+  --normal: #7ee787;
+  --low: #ffb84a;
+  --high: #ff7b72;
+  --unknown: #6b7c7a;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+
+  --font-ui: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  font-family: var(--font-ui);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html, body, #root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  background: #111;
-  color: #eee;
+  background: var(--bg-gradient) fixed;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--accent-glow);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 8px;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 th, td {
   text-align: left;
-  padding: 6px 10px;
-  border-bottom: 1px solid #262626;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 th {
-  color: #999;
+  color: var(--text-faint);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 tr:hover td {
-  background: #1a1a1a;
+  background: var(--surface-2);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }

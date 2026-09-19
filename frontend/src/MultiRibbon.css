@@ -2,7 +2,8 @@
   width: 150px;
   flex-shrink: 0;
   font-size: 11px;
-  color: #999;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -1,0 +1,173 @@
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(9, 15, 15, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.app-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), #0e8f83);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 4px 14px var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text);
+}
+
+.app-subtitle {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.app-error {
+  color: var(--high);
+  background: rgba(255, 123, 114, 0.08);
+  border-bottom: 1px solid rgba(255, 123, 114, 0.25);
+  padding: 8px 20px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 18px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section-card {
+  padding: 16px 18px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-heading h2 {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.app-empty-state {
+  color: var(--text-faint);
+  font-size: 12.5px;
+  padding: 8px 0;
+}
+
+.analyte-select {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.analyte-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.flag-normal { color: var(--normal); }
+.flag-low { color: var(--low); }
+.flag-high, .flag-abnormal { color: var(--high); }
+.flag-unknown { color: var(--unknown); }
+
+.review-warning {
+  color: var(--low);
+}
+
+/* Compact document list for the sidebar -- a wide table doesn't fit 300px,
+   so this mirrors SessionList's row pattern instead. */
+.document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.document-row {
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.document-row:hover {
+  background: var(--surface-2);
+}
+
+.document-row-name {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-row-meta {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+.document-list-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 8px 10px;
+}
