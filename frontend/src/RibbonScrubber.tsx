@@ -52,6 +52,7 @@ export default function RibbonScrubber({ observations, display, width = 720, hei
     if (!activeObs) return;
     if (activeObs.llm_annotation) {
       setAiText(activeObs.llm_annotation);
+      setAiLoading(false);
       return;
     }
     let cancelled = false;
@@ -63,7 +64,10 @@ export default function RibbonScrubber({ observations, display, width = 720, hei
       if (result) setAiText(result.text);
     });
     return () => {
+      // Scrubbing away mid-fetch cancels it; without this the card kept
+      // saying "asking AI..." next to the next point's cached annotation.
       cancelled = true;
+      setAiLoading(false);
     };
   }, [activeObs?.id]);
 
